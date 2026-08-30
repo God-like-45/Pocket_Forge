@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# Seed the local Qdrant database
+echo "Seeding Qdrant Vector Database..."
+python seed_lore.py
+
 # Start Celery worker in the background
 echo "Starting Celery worker..."
 celery -A app.worker.celery_app worker --loglevel=info &

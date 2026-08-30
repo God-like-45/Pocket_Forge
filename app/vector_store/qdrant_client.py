@@ -2,11 +2,11 @@ import os
 from qdrant_client import QdrantClient
 from sentence_transformers import SentenceTransformer
 
-# Load environment variable or default to localhost
-QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6335")
+# Use local file-based Qdrant database to avoid needing a dedicated cloud server
+QDRANT_PATH = os.getenv("QDRANT_PATH", "./qdrant_data")
 
-# Initialize Qdrant client
-qdrant = QdrantClient(url=QDRANT_URL)
+# Initialize Qdrant client in local mode
+qdrant = QdrantClient(path=QDRANT_PATH)
 
 _embedding_model = None
 
