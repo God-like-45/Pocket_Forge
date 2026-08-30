@@ -1,0 +1,42 @@
+# Implementation Plan: Perfectly Timed Sound Effects
+
+The goal is to elevate the audio drama experience by injecting perfectly timed Sound Effects (SFX) that synchronize with the AI-generated dialogue, without relying on complex backend mixing software like FFmpeg.
+
+## Proposed Changes
+
+We will use a **Cumulative Timing Architecture** to trigger SFX in the browser.
+
+### 1. Schema & Prompt Upgrades
+#### [MODIFY] `app/schemas/script.py`
+Add an optional `sfx` field to the `ScriptLine` model (e.g., "explosion", "door", "alarm", "laser").
+
+#### [MODIFY] `app/agents/nodes.py`
+Update the LangGraph Script Writer agent to occasionally attach an `sfx` to a line of dialogue when the action calls for it.
+
+### 2. Audio Processing Upgrade
+#### [NEW Dependency] `mutagen`
+A pure-Python library to read the exact duration (in seconds) of MP3 files.
+
+#### [MODIFY] `app/worker/tasks.py`
+When concatenating the individual speech chunks into the final MP3:
+- Calculate the duration of each chunk using `mutagen`.
+- Keep a running total of the elapsed time (`current_time`).
+- If a script line has an `sfx` attached, record its precise timestamp in an `sfx_schedule` array (e.g., `[{"sfx": "alarm", "time": 4.25}]`).
+- Save the `sfx_schedule` to the database alongside the `script_json`.
+
+### 3. SFX Generation
+#### [MODIFY] `generate_mock_audio.py`
+Synthesize simple mock SFX tracks (e.g., `alarm.wav`, `explosion.wav`, `laser.wav`, `door.wav`) to be saved in `static/sfx/`.
+
+### 4. Live Browser Mixing
+#### [MODIFY] `static/app.js`
+- Create a pool of HTML5 `<audio>` elements dedicated to playing SFX.
+- Read the `sfx_schedule` from the completed job data.
+- Attach an `ontimeupdate` event listener to the main voice player. As the playback time progresses, it will trigger the correct SFX exactly when the timestamp is reached.
+
+## User Review Required
+
+> [!IMPORTANT]
+> The mock SFX will be simple synthesized tones for now to keep the project completely dependency-free. You can always replace the `.wav` files in `static/sfx/` with high-quality sound effects later!
+
+Does this architecture look good to you? Once you approve, I'll build it!

@@ -45,6 +45,25 @@ async def async_process_chapter(job_id: int):
                     
                     chunk_paths = await asyncio.gather(*audio_tasks)
                     
+                    # Compute SFX Schedule
+                    from mutagen.mp3 import MP3
+                    sfx_schedule = []
+                    current_time = 0.0
+                    for i, path in enumerate(chunk_paths):
+                        line = lines[i]
+                        sfx = line.get("sfx")
+                        if sfx:
+                            sfx_schedule.append({"sfx": sfx, "time": current_time})
+                        # Add duration of this chunk
+                        try:
+                            audio = MP3(path)
+                            current_time += audio.info.length
+                        except Exception as e:
+                            print(f"Error reading MP3 duration for {path}:", e)
+                            
+                    script_data["sfx_schedule"] = sfx_schedule
+                    job.script_json = script_data
+                    
                     # Merge all audio chunks
                     final_url = merge_audio(job_id, chunk_paths)
                     

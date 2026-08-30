@@ -84,6 +84,8 @@ def scriptwriter_node(state: AgentState) -> AgentState:
             "You must format your response exactly matching the provided JSON schema.\n"
             "Translate all narrative text into 'NARRATOR' lines, and dialogue into character lines.\n"
             "Include an appropriate emotional tone for each line. "
+            "Select an overall `bgm_track` for the scene ('tense', 'action', or 'calm') based on the general mood.\n"
+            "If a specific sound effect occurs exactly at the start of a line (e.g., an alarm blaring, a door opening, an explosion), set the `sfx` field to a simple string like 'alarm', 'door', 'laser', or 'explosion'. Otherwise, omit it.\n"
             "Use the provided Character Lore to ensure accuracy."
         )
     )
