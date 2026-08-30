@@ -1,0 +1,58 @@
+# Implement LangGraph Workflow (Phase 2)
+
+We will build the LangGraph orchestration to convert raw text into a structured audio drama script using the Groq API (Llama-3 models) and Qdrant.
+
+## Open Questions
+
+> [!WARNING]
+> Please confirm if you have set `GROQ_API_KEY` in your `.env` file, as the agents will use Groq by default for Llama-3. I've defaulted to `llama-3.1-8b-instant` for the Director/Reviewer and `llama-3.3-70b-versatile` for the ScriptWriter.
+> If you prefer to use local Ollama, please let me know, and I can switch the LLM initialization to `ChatOllama`.
+
+## Proposed Changes
+
+### `app/schemas/script.py`
+Define the expected Pydantic output.
+#### [NEW] `app/schemas/script.py`
+- `ScriptLine(BaseModel)`: `speaker: str`, `text: str`, `emotion: str`
+- `Script(BaseModel)`: `lines: List[ScriptLine]`
+
+### `app/agents/state.py`
+Define the state object passed between nodes.
+#### [NEW] `app/agents/state.py`
+- `AgentState(TypedDict)`: 
+  - `chapter_text: str`
+  - `director_breakdown: str`
+  - `script: Optional[Script]`
+  - `feedback: Optional[str]`
+  - `revision_count: int`
+
+### `app/agents/tools.py`
+#### [NEW] `app/agents/tools.py`
+- `Lore_RAG_Tool`: A LangChain `@tool` that takes a `character_name` as input, embeds the query using our `SentenceTransformer` model, and queries the Qdrant `lore_entities` collection. It returns the character's persona and voice tone.
+
+### `app/agents/nodes.py`
+Implement the agent nodes.
+#### [NEW] `app/agents/nodes.py`
+- **director_node**: Takes `chapter_text`, uses `llama-3.1-8b-instant` to identify characters and context. Updates `director_breakdown`.
+- **scriptwriter_node**: Uses `llama-3.3-70b-versatile`. Takes `chapter_text` and `director_breakdown`. Has access to `Lore_RAG_Tool` via tool calling. Generates the final script using `.with_structured_output(Script)`.
+- **reviewer_node**: Uses `llama-3.1-8b-instant`. Checks if the script is complete and formatted correctly. Outputs feedback or `PASS`.
+
+### `app/agents/graph.py`
+Wire the nodes into a `StateGraph`.
+#### [NEW] `app/agents/graph.py`
+- Create the graph.
+- Add nodes: `director`, `scriptwriter`, `reviewer`.
+- Set edges: `START -> director -> scriptwriter -> reviewer`.
+- Conditional edge from `reviewer`: If `PASS` or `revision_count > 3`, go to `END`. Otherwise, route back to `scriptwriter` with feedback.
+
+### `test_graph.py`
+#### [NEW] `test_graph.py`
+A standalone script to execute the graph with a small piece of text and print the resulting JSON script to verify everything works.
+
+## Verification Plan
+
+### Automated Tests
+- I will run `python test_graph.py` to ensure the LangGraph pipeline can take a raw text snippet and successfully output a validated Pydantic JSON script.
+
+### Manual Verification
+- You can review the terminal output of the test script to see the agent reasoning and the final JSON script generation.

@@ -1,0 +1,47 @@
+# Implement Audio Generation (Phase 4)
+
+We will implement the final phase of the pipeline by rendering the generated JSON scripts into full audio files using Microsoft's free `edge-tts` library and stitching them together with `pydub`.
+
+## Open Questions
+
+> [!WARNING]
+> `pydub` requires **FFmpeg** to be installed on your machine to decode and merge `.mp3` files.
+> Do you already have FFmpeg installed and in your system PATH? If not, you will need to download and install it for this to work successfully on Windows.
+
+## Proposed Changes
+
+### `app/services/audio.py`
+We will create a dedicated service module for audio generation to keep `tasks.py` clean.
+#### [NEW] `app/services/audio.py`
+- Create a dictionary mapping characters to voices (e.g., `Dr. Aris -> en-GB-SoniaNeural`, `Captain Vance -> en-US-ChristopherNeural`, `NARRATOR -> en-US-AriaNeural`).
+- `generate_line_audio(job_id: int, index: int, speaker: str, text: str) -> str`:
+  - Check if `static/audio/chunk_{job_id}_{index}.mp3` exists. If so, skip download.
+  - Map the `speaker` to a voice.
+  - Execute `edge_tts.Communicate(text, voice).save()` asynchronously.
+  - Return the file path.
+- `merge_audio(job_id: int, chunk_paths: list[str]) -> str`:
+  - Load each chunk sequentially using `pydub.AudioSegment.from_file()`.
+  - Concatenate them (`+`).
+  - Export the final merged track to `static/audio/final_{job_id}.mp3`.
+  - Return the relative URL (e.g., `/static/audio/final_{job_id}.mp3`).
+
+### `app/worker/tasks.py`
+Integrate the audio generation into our Celery workflow.
+#### [MODIFY] `app/worker/tasks.py`
+- After successfully updating the database to `processing_audio`, parse the `script_json`.
+- Create a list of asynchronous `generate_line_audio` tasks.
+- Use `await asyncio.gather(*tasks)` to run `edge-tts` concurrently for all script lines.
+- Call `merge_audio()` to stitch the downloaded chunks.
+- Update the job record to `status = "Completed"` and `result_audio_url = final_url`.
+
+### `app/main.py`
+Serve the static files so the client can actually listen to the audio.
+#### [MODIFY] `app/main.py`
+- Add FastAPI's `StaticFiles` mount to serve the `static/audio` directory.
+
+## Verification Plan
+
+### Automated Tests
+- I will run the Celery worker and use `curl` to trigger another `/upload-chapter` job.
+- I will verify that `chunk_X.mp3` files are generated concurrently.
+- I will verify that `final_X.mp3` is generated and that the job status in Postgres successfully moves to `Completed` with a valid audio URL.

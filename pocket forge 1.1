@@ -1,0 +1,56 @@
+# PocketForge - Phase 0 Implementation Plan
+
+This plan outlines Phase 0: **Infrastructure Scaffolding & Validation**. The goal of Phase 0 is to prove that the core infrastructure components (FastAPI, Postgres, Redis, Celery) are communicating correctly before we introduce the complexity of LangGraph, LLMs, and TTS.
+
+## Open Questions
+
+- Do you want to include **Alembic** for database migrations in this phase, or just rely on SQLAlchemy's `Base.metadata.create_all()` for now to keep things simple?
+- Would you like to use synchronous SQLAlchemy (`psycopg2`) or asynchronous SQLAlchemy (`asyncpg`) for the FastAPI endpoints? (I recommend asynchronous for a modern FastAPI stack).
+
+## Proposed Changes
+
+### 1. Environment & Infrastructure Validation
+We will verify that the local environment is correctly configured:
+- Create `.env` from `.env.example`.
+- Ensure `docker-compose up -d` successfully spins up PostgreSQL, Redis, and Qdrant.
+- Install dependencies via `requirements.txt`.
+
+### 2. Database Scaffolding
+We need a foundation to track the state of audio generation jobs.
+#### [NEW] `app/core/config.py`
+- Pydantic settings model to load `.env` variables securely.
+#### [NEW] `app/db/database.py`
+- SQLAlchemy engine and sessionmaker configuration.
+#### [NEW] `app/models/job.py`
+- Create a `Job` SQLAlchemy model with fields: `id`, `text_content`, `status` (Pending, Processing, Complete, Failed), `created_at`.
+
+### 3. Celery Worker Scaffolding
+We need to configure Celery to use Redis as a broker and create a basic task.
+#### [NEW] `app/worker/celery_app.py`
+- Initialize Celery with the Redis URL.
+#### [NEW] `app/worker/tasks.py`
+- Create a dummy task `process_chapter_task(job_id: int)`.
+- The task will query the DB, update status to 'Processing', sleep for 5 seconds to simulate work, and then update status to 'Complete'.
+
+### 4. FastAPI Endpoints
+We will expose an API to trigger the workflow.
+#### [NEW] `app/main.py`
+- Initialize FastAPI app.
+- Add `/health` endpoint to check DB and Redis connectivity.
+#### [NEW] `app/api/endpoints.py`
+- Add `POST /chapters` endpoint.
+- It will receive chapter text, create a `Job` in Postgres (status: Pending), and push `process_chapter_task.delay(job.id)` to Celery.
+- Return the `job_id` to the user.
+- Add `GET /chapters/{job_id}` to check the status of a job.
+
+## Verification Plan
+
+### Automated Tests
+- None required for Phase 0 yet.
+
+### Manual Verification
+1. Run `docker-compose up -d`.
+2. Start the FastAPI server: `uvicorn app.main:app --reload`.
+3. Start the Celery worker: `celery -A app.worker.celery_app worker --loglevel=info`.
+4. Hit the `/health` endpoint to verify connections.
+5. POST a dummy chapter to `/chapters` and observe the Celery worker picking up the task and changing the status in the database.

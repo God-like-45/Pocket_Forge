@@ -1,0 +1,24 @@
+# PocketForge - Phase 1 Walkthrough
+
+Phase 1 has been executed. We have fully migrated the scaffolding to support asynchronous operations and prepared our vector database connection!
+
+Here are the changes that were made:
+
+### 1. Asynchronous PostgreSQL Migration
+- **Dependencies:** Added `asyncpg` to `requirements.txt` and installed it via pip.
+- **Config:** Updated `DATABASE_URL` in [app/core/config.py](file:///c:/Users/Umesh%20Chandra/Desktop/Pocket_Forge/app/core/config.py) to use `postgresql+asyncpg://`.
+- **Database Engine:** Refactored [app/db/database.py](file:///c:/Users/Umesh%20Chandra/Desktop/Pocket_Forge/app/db/database.py) to use `create_async_engine` and `AsyncSession`.
+- **Model Schema:** Updated `Job` in [app/models/job.py](file:///c:/Users/Umesh%20Chandra/Desktop/Pocket_Forge/app/models/job.py) to include `chapter_text`, `script_json` (JSONB), and `result_audio_url`.
+
+### 2. FastAPI Async Endpoint Updates
+- **Lifespan Manager:** Refactored [app/main.py](file:///c:/Users/Umesh%20Chandra/Desktop/Pocket_Forge/app/main.py) to handle database table creation asynchronously using FastAPI's `@asynccontextmanager`.
+- **Async Endpoints:** Changed the `/upload-chapter` and `/{job_id}` endpoints in [app/api/endpoints.py](file:///c:/Users/Umesh%20Chandra/Desktop/Pocket_Forge/app/api/endpoints.py) to utilize the new `AsyncSession`.
+- **Celery Compatibility:** Updated the worker task in [app/worker/tasks.py](file:///c:/Users/Umesh%20Chandra/Desktop/Pocket_Forge/app/worker/tasks.py) to use `asyncio.run` so it can interact properly with the asynchronous DB session during background work.
+
+### 3. Qdrant Setup & Lore Seeding
+- **Client Configuration:** Created [app/vector_store/qdrant_client.py](file:///c:/Users/Umesh%20Chandra/Desktop/Pocket_Forge/app/vector_store/qdrant_client.py) to initialize the Qdrant connection and load the HuggingFace `all-MiniLM-L6-v2` embedding model using `sentence-transformers`.
+- **Data Initialization:** Wrote the [seed_lore.py](file:///c:/Users/Umesh%20Chandra/Desktop/Pocket_Forge/seed_lore.py) script. It contains mock story lore focusing on an anti-gravity tech universe, featuring characters like **Dr. Aris** and **Captain Vance**, and their traits (persona, voice tone, stance). It calculates their text embeddings and uploads them as vectors to Qdrant.
+
+### Next Steps for You:
+1. Test your endpoints with `uvicorn app.main:app --reload`.
+2. Ensure you have your `GROQ_API_KEY` set in the `.env` file for Phase 2 when we start building the LangGraph workflow!

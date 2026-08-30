@@ -1,0 +1,61 @@
+# PocketForge - Phase 1 Walkthrough
+
+Phase 1 has been executed. We have fully migrated the scaffolding to support asynchronous operations and prepared our vector database connection!
+
+Here are the changes that were made:
+
+### 1. Asynchronous PostgreSQL Migration
+- **Dependencies:** Added `asyncpg` to `requirements.txt` and installed it via pip.
+- **Config:** Updated `DATABASE_URL` in [app/core/config.py](file:///c:/Users/Umesh%20Chandra/Desktop/Pocket_Forge/app/core/config.py) to use `postgresql+asyncpg://`.
+- **Database Engine:** Refactored [app/db/database.py](file:///c:/Users/Umesh%20Chandra/Desktop/Pocket_Forge/app/db/database.py) to use `create_async_engine` and `AsyncSession`.
+- **Model Schema:** Updated `Job` in [app/models/job.py](file:///c:/Users/Umesh%20Chandra/Desktop/Pocket_Forge/app/models/job.py) to include `chapter_text`, `script_json` (JSONB), and `result_audio_url`.
+
+### 2. FastAPI Async Endpoint Updates
+- **Lifespan Manager:** Refactored [app/main.py](file:///c:/Users/Umesh%20Chandra/Desktop/Pocket_Forge/app/main.py) to handle database table creation asynchronously using FastAPI's `@asynccontextmanager`.
+- **Async Endpoints:** Changed the `/upload-chapter` and `/{job_id}` endpoints in [app/api/endpoints.py](file:///c:/Users/Umesh%20Chandra/Desktop/Pocket_Forge/app/api/endpoints.py) to utilize the new `AsyncSession`.
+- **Celery Compatibility:** Updated the worker task in [app/worker/tasks.py](file:///c:/Users/Umesh%20Chandra/Desktop/Pocket_Forge/app/worker/tasks.py) to use `asyncio.run` so it can interact properly with the asynchronous DB session during background work.
+
+### 3. Qdrant Setup & Lore Seeding
+- **Client Configuration:** Created [app/vector_store/qdrant_client.py](file:///c:/Users/Umesh%20Chandra/Desktop/Pocket_Forge/app/vector_store/qdrant_client.py) to initialize the Qdrant connection and load the HuggingFace `all-MiniLM-L6-v2` embedding model using `sentence-transformers`.
+- **Data Initialization:** Wrote the [seed_lore.py](file:///c:/Users/Umesh%20Chandra/Desktop/Pocket_Forge/seed_lore.py) script. It contains mock story lore focusing on an anti-gravity tech universe, featuring characters like **Dr. Aris** and **Captain Vance**, and their traits (persona, voice tone, stance). It calculates their text embeddings and uploads them as vectors to Qdrant.
+
+## Phase 2: LangGraph Orchestration (Completed)
+We have successfully implemented the core multi-agent reasoning logic to convert prose text into an audio drama script!
+
+- **Schemas & State:** Implemented the `Script` and `ScriptLine` schemas using Pydantic in [app/schemas/script.py](file:///c:/Users/Umesh%20Chandra/Desktop/Pocket_Forge/app/schemas/script.py), and defined our workflow graph state in [app/agents/state.py](file:///c:/Users/Umesh%20Chandra/Desktop/Pocket_Forge/app/agents/state.py).
+- **Qdrant RAG Tool:** Created the `lore_rag_tool` inside [app/agents/tools.py](file:///c:/Users/Umesh%20Chandra/Desktop/Pocket_Forge/app/agents/tools.py) which embeds the character name and fetches their persona profile directly from the vector database.
+- **LLM Configuration:** Configured Groq in [app/agents/llm.py](file:///c:/Users/Umesh%20Chandra/Desktop/Pocket_Forge/app/agents/llm.py) to point to the available `gpt-oss-20b` (for standard logic) and `gpt-oss-120b` (for complex, structured extraction).
+- **Graph Nodes:** Implemented three agents inside [app/agents/nodes.py](file:///c:/Users/Umesh%20Chandra/Desktop/Pocket_Forge/app/agents/nodes.py):
+  1. `Director Agent`: Breaks down a chapter to extract all speakers and a summary.
+  2. `ScriptWriter Agent`: Looks up each speaker in the vector store and extracts a JSON-formatted script matching our Pydantic schema using `with_structured_output`.
+  3. `Reviewer Agent`: Checks formatting and passes the script (or routes it back to the ScriptWriter for revisions).
+- **StateGraph:** Wired the nodes together into a cyclical, conditional graph in [app/agents/graph.py](file:///c:/Users/Umesh%20Chandra/Desktop/Pocket_Forge/app/agents/graph.py).
+
+> [!TIP]
+> The LangGraph pipeline passed its automated verification. The agent successfully read the "Dr. Aris and Captain Vance" scene, generated an accurate breakdown, retrieved their personas, and generated the final `JSON` script with appropriate `emotion` tags!
+
+## Phase 3: Celery Integration (Completed)
+We have hooked up our FastAPI app to a background Celery worker to ensure our lengthy LLM audio generation doesn't block incoming web requests!
+
+- **Worker Configuration**: The worker runs using the Redis broker we deployed via Docker.
+- **Task Definition**: Refactored `app/worker/tasks.py` so that the `process_chapter_task` fetches the pending Postgres job asynchronously using `asyncio.run()`, runs the LangGraph pipeline, and writes the `script_json` back to the database.
+- **API Endpoints**: 
+    - `POST /upload-chapter`: Saves a job to Postgres as `Pending` and pushes it to Celery.
+    - `GET /status/{job_id}`: Allows clients to poll for real-time status updates on their job.
+
+> [!NOTE]
+> I ran an end-to-end curl test on `/upload-chapter`. The Celery worker successfully picked it up, ran the LangGraph agent, and updated the Postgres job status to `processing_audio`!
+
+## Phase 4: Audio Generation (Completed)
+We implemented the final layer of our audio synthesis pipeline completely free of charge, avoiding any third party paid services like ElevenLabs.
+
+- **Audio Service**: Created `app/services/audio.py` that utilizes Microsoft's `edge-tts` to map character personas to distinct, natural-sounding AI voices.
+- **Idempotency & Concurrency**: Synthesizes each line concurrently using `asyncio.gather` for significantly faster generation while leveraging local caching (`chunk_{job_id}_{index}.mp3`) to prevent re-downloading existing audio.
+- **Audio Merging**: Implemented a byte-level `.mp3` merging algorithm that concatenates all frames sequentially without relying on heavy external dependencies like `FFmpeg` or `pydub`. 
+- **Static Delivery**: Merges the final output into `final_{job_id}.mp3` and serves it directly via FastAPI's `StaticFiles` mount at `/static/audio`.
+
+> [!NOTE]
+> I ran a final test, and the pipeline successfully processed the text, generated the chunks, merged them into a cohesive audio drama file, updated the PostgreSQL job status to `Completed`, and output a valid `result_audio_url`!
+
+### 🎉 PocketForge is Complete!
+PocketForge is now a fully functional, highly asynchronous, and free multi-agent AI pipeline for converting your web-novels into multi-voice audio dramas. The architecture robustly handles everything from queueing and graph orchestration to voice synthesis!

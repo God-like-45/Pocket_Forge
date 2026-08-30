@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PocketForge - AI Audio Dramas</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
+
+        :root {
+            --bg-color: #0b0f19;
+            --panel-bg: rgba(255, 255, 255, 0.05);
+            --accent-color: #00e5ff;
+            --text-primary: #f0f4f8;
+            --text-secondary: #8b9bb4;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(0, 229, 255, 0.08) 0%, transparent 50%),
+                radial-gradient(circle at 85% 30%, rgba(138, 43, 226, 0.08) 0%, transparent 50%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        header {
+            margin-top: 3rem;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 3rem;
+            font-weight: 800;
+            margin: 0;
+            background: linear-gradient(90deg, #00e5ff, #8a2be2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -1px;
+        }
+
+        p.subtitle {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            margin-top: 0.5rem;
+        }
+
+        main {
+            width: 100%;
+            max-width: 800px;
+            margin-top: 2rem;
+            padding: 2rem;
+            background: var(--panel-bg);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        textarea {
+            width: 100%;
+            height: 200px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 1rem;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 1rem;
+            resize: vertical;
+            box-sizing: border-box;
+            transition: border-color 0.3s ease;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: var(--accent-color);
+        }
+
+        button {
+            display: block;
+            width: 100%;
+            margin-top: 1.5rem;
+            padding: 1rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--bg-color);
+            background: linear-gradient(90deg, #00e5ff, #00b4d8);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 229, 255, 0.4);
+        }
+        
+        button:disabled {
+            background: #333;
+            color: #666;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .status-container {
+            margin-top: 2rem;
+            display: none; /* Hidden by default */
+        }
+
+        .status-text {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .progress-bar-bg {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: var(--accent-color);
+            border-radius: 4px;
+            transition: width 0.4s ease;
+            box-shadow: 0 0 10px var(--accent-color);
+        }
+
+        .audio-player-container {
+            margin-top: 2rem;
+            display: none; /* Hidden by default */
+            text-align: center;
+        }
+
+        audio {
+            width: 100%;
+            outline: none;
+        }
+        
+        .error-message {
+            color: #ff4c4c;
+            margin-top: 1rem;
+            text-align: center;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>PocketForge</h1>
+        <p class="subtitle">AI-Powered Multi-Voice Audio Dramas</p>
+    </header>
+
+    <main>
+        <textarea id="chapterText" placeholder="Paste your story chapter here... (e.g. Dr. Aris examined the core. Captain Vance entered, furious.)"></textarea>
+        
+        <button id="generateBtn" onclick="generateAudio()">Generate Audio Drama</button>
+
+        <div id="errorMsg" class="error-message"></div>
+
+        <div class="status-container" id="statusContainer">
+            <div class="status-text">
+                <span id="statusLabel">Initializing...</span>
+            </div>
+            <div class="progress-bar-bg">
+                <div class="progress-bar-fill" id="progressBar"></div>
+            </div>
+        </div>
+
+        <div class="audio-player-container" id="audioContainer">
+            <p class="subtitle" style="margin-bottom: 1rem;">Your Audio Drama is Ready</p>
+            <audio id="audioPlayer" controls></audio>
+        </div>
+    </main>
+
+    <script>
+        let pollInterval;
+
+        async function generateAudio() {
+            const text = document.getElementById('chapterText').value.trim();
+            const btn = document.getElementById('generateBtn');
+            const statusContainer = document.getElementById('statusContainer');
+            const statusLabel = document.getElementById('statusLabel');
+            const progressBar = document.getElementById('progressBar');
+            const audioContainer = document.getElementById('audioContainer');
+            const errorMsg = document.getElementById('errorMsg');
+
+            if (!text) return;
+
+            // Reset UI
+            btn.disabled = true;
+            btn.innerText = "Processing...";
+            errorMsg.style.display = 'none';
+            audioContainer.style.display = 'none';
+            statusContainer.style.display = 'block';
+            progressBar.style.width = '10%';
+            statusLabel.innerText = "Uploading chapter...";
+
+            try {
+                const response = await fetch('/api/v1/upload-chapter', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ chapter_text: text })
+                });
+
+                if (!response.ok) throw new Error("Upload failed");
+
+                const data = await response.json();
+                const jobId = data.job_id;
+
+                // Start polling
+                pollInterval = setInterval(() => checkStatus(jobId), 2000);
+
+            } catch (err) {
+                showError("Failed to connect to the server.");
+            }
+        }
+
+        async function checkStatus(jobId) {
+            const statusLabel = document.getElementById('statusLabel');
+            const progressBar = document.getElementById('progressBar');
+            const audioContainer = document.getElementById('audioContainer');
+            const audioPlayer = document.getElementById('audioPlayer');
+            const btn = document.getElementById('generateBtn');
+
+            try {
+                const response = await fetch(`/api/v1/status/${jobId}`);
+                const data = await response.json();
+
+                const status = data.status;
+
+                if (status === "Pending") {
+                    statusLabel.innerText = "In Queue...";
+                    progressBar.style.width = '20%';
+                } else if (status === "Processing Text") {
+                    statusLabel.innerText = "LangGraph Agent is writing the script...";
+                    progressBar.style.width = '50%';
+                } else if (status === "processing_audio") {
+                    statusLabel.innerText = "Synthesizing AI voices with Edge-TTS...";
+                    progressBar.style.width = '80%';
+                } else if (status === "Completed") {
+                    clearInterval(pollInterval);
+                    statusLabel.innerText = "Finished!";
+                    progressBar.style.width = '100%';
+                    
+                    // Show audio player
+                    audioPlayer.src = data.result_audio_url;
+                    audioContainer.style.display = 'block';
+                    
+                    // Reset button
+                    btn.disabled = false;
+                    btn.innerText = "Generate Another";
+                } else if (status === "Failed") {
+                    clearInterval(pollInterval);
+                    showError("Job failed during processing.");
+                }
+
+            } catch (err) {
+                console.error("Polling error:", err);
+            }
+        }
+
+        function showError(msg) {
+            const btn = document.getElementById('generateBtn');
+            const errorMsg = document.getElementById('errorMsg');
+            const statusContainer = document.getElementById('statusContainer');
+            
+            clearInterval(pollInterval);
+            statusContainer.style.display = 'none';
+            errorMsg.innerText = msg;
+            errorMsg.style.display = 'block';
+            btn.disabled = false;
+            btn.innerText = "Generate Audio Drama";
+        }
+    </script>
+</body>
+</html>

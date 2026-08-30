@@ -1,0 +1,44 @@
+# Phase 5: Evaluation, Frontend, and Documentation
+
+We will build the final polished pieces of the PocketForge ecosystem: an automated hallucination evaluator, a sleek frontend, and a comprehensive `README.md`.
+
+## Open Questions
+> [!NOTE]
+> Are you looking for any specific design aesthetic or framework for the frontend? If not specified, I will use plain HTML/CSS with vanilla JavaScript to keep it lightweight, embedding a modern dynamic and sleek aesthetic (dark mode, glassmorphism) tailored for web novels.
+
+## Proposed Changes
+
+### 1. Evaluation Script
+We will write a standalone evaluation script to test if the LangGraph agent hallucinates outside the bounds of the lorebook.
+#### [NEW] `evaluate.py`
+- Connect to Qdrant to pull the actual context for a given set of characters (e.g., Dr. Aris, Captain Vance).
+- Hardcode a sample generated script JSON that we know was produced by the agent.
+- Create an LLM prompt for Groq/Ollama acting as an evaluator:
+  - Input: The extracted Lore (Context) and the Script (Generated Output).
+  - Task: Identify any actions, personality traits, or details in the script that directly contradict or hallucinate beyond the provided Lore.
+  - Output format: JSON containing `score` (0.0 to 1.0) and `reasoning`.
+
+### 2. Frontend UI
+We will add a beautiful, single-page application to serve as the user interface.
+#### [NEW] `static/index.html`
+- A sleek, dark-themed UI (vanilla CSS/JS) with an anti-gravity sci-fi aesthetic.
+- A `<textarea>` for pasting the web novel chapter.
+- A "Generate Audio Drama" submit button.
+- JavaScript logic to:
+  - `POST` to `/api/v1/upload-chapter`
+  - Start a `setInterval` loop polling `GET /api/v1/status/{job_id}`
+  - Display a dynamic progress bar for statuses (`Pending` -> `Processing Text` -> `processing_audio` -> `Completed`)
+  - Reveal an HTML5 `<audio>` player when `result_audio_url` is returned.
+#### [MODIFY] `app/main.py`
+- Mount `/` to serve `static/index.html` by default.
+
+### 3. Documentation
+#### [NEW] `README.md`
+- Explain the 100% free/open-source architecture (FastAPI, LangGraph, Groq, Edge-TTS).
+- Provide commands for spinning up the infrastructure using `docker-compose up -d`.
+- Explain how the parallel Edge-TTS chunking mechanism works with `asyncio.gather` and byte-level MP3 merging.
+
+## Verification Plan
+1. Run `python evaluate.py` to ensure the Groq evaluation prompt executes successfully and catches/ignores hallucinations.
+2. Open `http://127.0.0.1:8000/` in a browser (using a subagent/screenshot tool) to verify the frontend loads.
+3. Review the README for clarity.

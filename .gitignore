@@ -1,0 +1,8 @@
+.env
+.venv/
+venv/
+__pycache__/
+*.pyc
+.DS_Store
+static/audio/chunk_*.mp3
+static/audio/final_*.mp3
