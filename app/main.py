@@ -11,7 +11,7 @@ import app.models  # Ensures models are imported
 async def lifespan(app: FastAPI):
     # Create tables asynchronously
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all) # Dropping for phase 1 schema change
+        # Note: In production, consider using Alembic for migrations instead of create_all
         await conn.run_sync(Base.metadata.create_all)
     yield
     await engine.dispose()
