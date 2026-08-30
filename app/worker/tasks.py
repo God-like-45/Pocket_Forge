@@ -26,8 +26,8 @@ async def async_process_chapter(job_id: int):
                     revision_count=0
                 )
                 
-                # Run LangGraph pipeline
-                final_state = graph_app.invoke(initial_state)
+                # Run LangGraph pipeline in a thread to avoid blocking the event loop
+                final_state = await asyncio.to_thread(graph_app.invoke, initial_state)
                 
                 if final_state.get("script"):
                     # Update database with script and move to next stage
@@ -68,4 +68,10 @@ async def async_process_chapter(job_id: int):
 
 @celery_app.task(bind=True)
 def process_chapter_task(self, job_id: int):
-    return asyncio.run(async_process_chapter(job_id))
+    from app.db.database import engine
+    async def run_task():
+        try:
+            return await async_process_chapter(job_id)
+        finally:
+            await engine.dispose()
+    return asyncio.run(run_task())

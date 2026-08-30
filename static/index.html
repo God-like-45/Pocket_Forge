@@ -222,7 +222,7 @@
                 if (!response.ok) throw new Error("Upload failed");
 
                 const data = await response.json();
-                const jobId = data.job_id;
+                const jobId = data.id;
 
                 // Start polling
                 pollInterval = setInterval(() => checkStatus(jobId), 2000);
