@@ -15,3 +15,12 @@ celery_app.conf.update(
     timezone="UTC",
     enable_utc=True,
 )
+
+if settings.CELERY_BROKER_URL and settings.CELERY_BROKER_URL.startswith("rediss://"):
+    import ssl
+    celery_app.conf.broker_use_ssl = {
+        'ssl_cert_reqs': ssl.CERT_NONE
+    }
+    celery_app.conf.redis_backend_use_ssl = {
+        'ssl_cert_reqs': ssl.CERT_NONE
+    }

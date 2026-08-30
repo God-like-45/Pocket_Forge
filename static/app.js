@@ -41,7 +41,14 @@ async function generateAudio() {
             body: JSON.stringify({ chapter_text: text })
         });
 
-        if (!response.ok) throw new Error("Server rejected the request.");
+        if (!response.ok) {
+            let errMsg = "Server rejected the request.";
+            try {
+                const errData = await response.json();
+                errMsg = errData.detail || errMsg;
+            } catch (e) {}
+            throw new Error(errMsg);
+        }
 
         const data = await response.json();
         const jobId = data.id;

@@ -24,15 +24,20 @@ class JobResponse(BaseModel):
 
 @router.post("/upload-chapter", response_model=JobResponse)
 async def create_chapter(chapter: ChapterCreate, db: AsyncSession = Depends(get_db)):
-    new_job = Job(chapter_text=chapter.chapter_text, status="Pending")
-    db.add(new_job)
-    await db.commit()
-    await db.refresh(new_job)
+    try:
+        new_job = Job(chapter_text=chapter.chapter_text, status="Pending")
+        db.add(new_job)
+        await db.commit()
+        await db.refresh(new_job)
 
-    # Dispatch Celery task by name to avoid importing heavy ML libraries in the web process
-    celery_app.send_task("app.worker.tasks.process_chapter_task", args=[new_job.id])
-
-    return new_job
+        # Dispatch Celery task by name
+        celery_app.send_task("app.worker.tasks.process_chapter_task", args=[new_job.id])
+        return new_job
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        # Return the actual error message so the user can see it in the UI
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
 
 @router.get("/status/{job_id}", response_model=JobResponse)
 async def get_chapter_status(job_id: int, db: AsyncSession = Depends(get_db)):
