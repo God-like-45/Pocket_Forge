@@ -8,9 +8,12 @@ QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6335")
 # Initialize Qdrant client
 qdrant = QdrantClient(url=QDRANT_URL)
 
-# Load the HuggingFace model for embeddings (it will download on first run)
-embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
+_embedding_model = None
 
 def get_embedding(text: str) -> list[float]:
     """Generates an embedding vector for the given text."""
-    return embedding_model.encode(text).tolist()
+    global _embedding_model
+    if _embedding_model is None:
+        from sentence_transformers import SentenceTransformer
+        _embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
+    return _embedding_model.encode(text).tolist()

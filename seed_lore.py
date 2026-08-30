@@ -1,6 +1,6 @@
 import uuid
 from qdrant_client.models import Distance, VectorParams, PointStruct
-from app.vector_store.qdrant_client import qdrant, get_embedding, embedding_model
+from app.vector_store.qdrant_client import qdrant, get_embedding
 
 COLLECTION_NAME = "lore_entities"
 
@@ -39,7 +39,7 @@ def seed_database():
 
     print(f"Creating collection '{COLLECTION_NAME}'...")
     # Get the embedding dimension from the model (for all-MiniLM-L6-v2 it's 384)
-    vector_size = embedding_model.get_sentence_embedding_dimension()
+    vector_size = 384
     
     qdrant.create_collection(
         collection_name=COLLECTION_NAME,

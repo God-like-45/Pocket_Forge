@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from typing import Optional, Any
 from app.db.database import get_db
 from app.models.job import Job
-from app.worker.tasks import process_chapter_task
+from app.worker.celery_app import celery_app
 
 router = APIRouter()
 
@@ -29,8 +29,8 @@ async def create_chapter(chapter: ChapterCreate, db: AsyncSession = Depends(get_
     await db.commit()
     await db.refresh(new_job)
 
-    # Dispatch Celery task
-    process_chapter_task.delay(new_job.id)
+    # Dispatch Celery task by name to avoid importing heavy ML libraries in the web process
+    celery_app.send_task("app.worker.tasks.process_chapter_task", args=[new_job.id])
 
     return new_job
 
