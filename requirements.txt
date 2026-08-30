@@ -11,7 +11,7 @@ langchain-community
 langchain-groq
 groq
 ollama
-sentence-transformers
+fastembed
 edge-tts
 pydub
 python-dotenv
