@@ -21,8 +21,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy project
 COPY . .
 
-# Make start.sh executable
-RUN chmod +x start.sh
+# Fix Windows CRLF line endings and make start.sh executable
+RUN sed -i 's/\r$//' start.sh && chmod +x start.sh
 
 # Expose port (Render ignores EXPOSE but good for local)
 EXPOSE 8000
