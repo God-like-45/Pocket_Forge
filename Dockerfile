@@ -21,5 +21,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy project
 COPY . .
 
-# Expose port
+# Make start.sh executable
+RUN chmod +x start.sh
+
+# Expose port (Render ignores EXPOSE but good for local)
 EXPOSE 8000
+
+# Run the unified start script
+CMD ["./start.sh"]
